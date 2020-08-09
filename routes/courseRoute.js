@@ -1,8 +1,7 @@
 var express = require('express');
-const Course = require('../models/Course');
+const Courses = require('../models/Courses');
 
 var router = express.Router();
-
 
 function apiAuthenticationMiddleware(req, res, next) {
   if (req.isAuthenticated()) {
@@ -11,34 +10,41 @@ function apiAuthenticationMiddleware(req, res, next) {
   res.status(401).json({error : 'Unauthenticated request'});
 }
 
-
-
 router.get('/', apiAuthenticationMiddleware, (req, res) => {
-  Course.find({}, (err, courses) => {
-    //Check for error and send an error json, otherwise
-    console.log(courses);
-    res.json(courses);
+  Courses.find({ username: req.user.username }, (err, Courses) => {    
+    res.json(Courses[0].courses);
   });
 });
 
 router.post('/', apiAuthenticationMiddleware, (req, res) => {
+  const course = req.body;
 
-  let courseBody = req.body;
-  if (!courseBody.courseNo || !courseBody.title) {
-    return res.status(400).json({ error: 'Requires body course no and title' });
+  if (!course.courseNo || !course.title) {
+    return res.status(400).json({ error: 'Requires body Course no and title' });
   }
 
-  //Valid course. Save it to the mongodb
-  let course = new Course(req.body);
+  const query = Courses.where({ username: req.user.username });
 
-  course.save((err) => {
-    if (err) {
-      console.log('Failed to save the course in Mongodb', err);
-      res.status(500).json({ status: 'Failed to save the course' });
-      return;
-    }
+  query.findOne((err, result) => {
+    if (err) return handleError(err);
 
-    res.json({ status: 'Successfully added the course' });
+    if (result) {
+      result.courses.push(course);
+
+    } else {
+        const newCourses = [course];
+        result = new Courses({ username: req.user.username, courses: newCourses });
+    }  
+
+    result.save((err) => {
+      if (err) {
+        console.log('Failed to save the Courses in Mongodb', err);
+        res.status(500).json({ status: 'Failed to save the Courses' });
+        return;
+      }
+  
+      res.json({ status: 'Successfully added the Courses' });
+    });
   });
 
 });
