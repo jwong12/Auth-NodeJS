@@ -48,7 +48,7 @@ router.get('/logout', function(req, res) {
 router.get('/', authenticationMiddleware, function(req, res) {
     console.log('In / User : ', req.user.username);
     res.render('index', {});
-  });
+});
   
 
 router.get('/courses', authenticationMiddleware, function(req, res) {

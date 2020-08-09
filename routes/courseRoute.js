@@ -1,5 +1,5 @@
 var express = require('express');
-const Course = require('../models/Course');
+const Courses = require('../models/Courses');
 
 var router = express.Router();
 
@@ -14,33 +14,76 @@ function apiAuthenticationMiddleware(req, res, next) {
 
 
 router.get('/', apiAuthenticationMiddleware, (req, res) => {
-  Course.find({}, (err, courses) => {
+  Courses.find({}, (err, Courses) => {
     //Check for error and send an error json, otherwise
-    console.log(courses);
-    res.json(courses);
+    console.log(Courses);
+    res.json(Courses);
   });
 });
 
 router.post('/', apiAuthenticationMiddleware, (req, res) => {
+  console.log('/api/courses post')
 
-  let courseBody = req.body;
-  if (!courseBody.courseNo || !courseBody.title) {
-    return res.status(400).json({ error: 'Requires body course no and title' });
+  const course = req.body;
+  console.log(course)
+
+  if (!course.courseNo || !course.title) {
+    return res.status(400).json({ error: 'Requires body Course no and title' });
   }
 
-  //Valid course. Save it to the mongodb
-  let course = new Course(req.body);
+  console.log('before findOne()')
+  console.log('username: ')
+  console.log(req.user.username);
+  //Valid Courses. Save it to the mongodb
+  const query = Courses.where({ username: req.user.username });
+  query.findOne((err, result) => {
+    console.log('result');
+    console.log(result);
 
-  course.save((err) => {
-    if (err) {
-      console.log('Failed to save the course in Mongodb', err);
-      res.status(500).json({ status: 'Failed to save the course' });
-      return;
-    }
+    if (err) return handleError(err);
 
-    res.json({ status: 'Successfully added the course' });
-  });
+    if (result) {
+      console.log('true')
+      const updatedCourses = [...result.courses];
+      updatedCourses.push(course);
 
+      console.log('updatedCourses');
+      console.log(updatedCourses);
+      
+      const coursesInstance = new Courses({ username: result.username, courses: updatedCourses });
+      console.log('coursesInstance')
+      console.log(coursesInstance)
+
+      coursesInstance.updateOne({ username: result.username }, (err) => {
+        if (err) {
+          console.log('Failed to save the Courses in Mongodb', err);
+          res.status(500).json({ status: 'Failed to save the Courses' });
+          return;
+        }
+    
+        res.json({ status: 'Successfully added the Courses' });
+      }); 
+
+    } else {
+      console.log('false')
+      const newCourses = [course];
+      const coursesInstance = new Courses({ username: req.user.username, courses: newCourses });
+      console.log('coursesInstance')
+      console.log(coursesInstance)
+      
+      coursesInstance.save((err) => {
+        if (err) {
+          console.log('Failed to save the Courses in Mongodb', err);
+          res.status(500).json({ status: 'Failed to save the Courses' });
+          return;
+        }
+    
+        res.json({ status: 'Successfully added the Courses' });
+      }); 
+    }  
+  })
+
+  console.log('outside of findOne()')
 });
 
 module.exports = router;
